@@ -21,6 +21,11 @@ elif os.getenv("XDG_RUNTIME_DIR"):
         f"{os.environ['XDG_RUNTIME_DIR']}/gridplayer/gridplayer-fileopen.socket",
         "AF_UNIX",
     )
+elif env.IS_MACOS:
+    S_NAME, S_TYPE = (
+        str(Path.home() / "Library/Caches/gridplayer/gridplayer-fileopen.socket"),
+        "AF_UNIX",
+    )
 
 if env.IS_MACOS:
     from Foundation import NSWorkspace
@@ -148,7 +153,7 @@ def _is_socket_working():
 def is_other_instance_running():
     global LISTENER
 
-    if env.IS_LINUX and _is_socket_working():
+    if (env.IS_LINUX or env.IS_MACOS) and _is_socket_working():
         return True
 
     LISTENER = _init_listener()

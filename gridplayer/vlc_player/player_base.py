@@ -9,11 +9,12 @@ from gridplayer.params import env
 from gridplayer.params.static import (
     VIDEO_END_LOOP_MARGIN_MS,
     AudioChannelMode,
+    VideoAspect,
     VideoCrop,
     VideoTransform,
 )
 from gridplayer.settings import Settings
-from gridplayer.utils.aspect_calc import calc_crop, calc_resize_scale
+from gridplayer.utils.aspect_calc import calc_crop, calc_fill_crop, calc_resize_scale
 from gridplayer.utils.misc import is_url
 from gridplayer.vlc_player.libvlc import vlc
 from gridplayer.vlc_player.player_event_manager import EventManager
@@ -526,6 +527,22 @@ class VlcPlayerBase(ABC):
             # video not loaded yet, video frame resized on init
             if self.media_input:
                 self.media_input.size = size
+            return
+
+        # FILL mode: centered cover-crop the source to the pane aspect via
+        # VLC's native crop RATIO ("w:h"), at native aspect, fit-in-window.
+        # The ratio crop (VoutDisplayCropRatio) is recomputed by VLC on every
+        # vout reconfiguration, so it survives window resizes — unlike a
+        # hand-computed absolute pixel crop, which collapsed to a sliver.
+        if aspect == VideoAspect.FILL:
+            crop_geometry_fmt = "{}:{}".format(*size)
+            self._log.debug(
+                f"FILL: size={size}, vid_dim={self.video_dimensions}"
+                f", crop_geo={crop_geometry_fmt}"
+            )
+            self._media_player.video_set_aspect_ratio(None)
+            self._media_player.video_set_crop_geometry(crop_geometry_fmt)
+            self._media_player.video_set_scale(0)
             return
 
         crop_aspect, crop_geometry = calc_crop(self.video_dimensions, size, aspect)

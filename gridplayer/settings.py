@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import suppress
 from enum import Enum
 from pathlib import Path
@@ -65,6 +66,9 @@ _default_settings = {
     "video_defaults/auto_reload_timer": 0,
     "misc/overlay_hide": True,
     "misc/overlay_timeout": 3,
+    "misc/overlay_disabled": False,
+    "misc/loading_status_disabled": False,
+    "misc/keep_window_size": False,
     "misc/mouse_hide": True,
     "misc/mouse_hide_timeout": 5,
     "misc/vlc_options": "",
@@ -88,7 +92,8 @@ if env.IS_MACOS:
 
 class _Settings:
     def __init__(self):
-        settings_path = get_app_data_dir() / "settings.ini"
+        override = os.environ.get("GRIDPLAYER_SETTINGS_PATH")
+        settings_path = Path(override) if override else get_app_data_dir() / "settings.ini"
 
         self.settings = QSettings(str(settings_path), QSettings.IniFormat)
 

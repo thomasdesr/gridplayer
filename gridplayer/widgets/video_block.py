@@ -196,7 +196,10 @@ class VideoBlock(QWidget):
 
         self.ui_setup()
 
-        self.video_status.show()
+        if Settings().get("misc/loading_status_disabled"):
+            self.video_status.hide()
+        else:
+            self.video_status.show()
         self.overlay.hide()
 
     def init_video_driver(self) -> VideoFrameVLC:
@@ -350,7 +353,10 @@ class VideoBlock(QWidget):
         self.video_driver.hide()
 
         self.video_status.icon = status
-        self.video_status.show()
+        if status == "processing" and Settings().get("misc/loading_status_disabled"):
+            self.video_status.hide()
+        else:
+            self.video_status.show()
         self.repaint()
 
     def update_status(self, info_text, percent=0):
@@ -636,6 +642,8 @@ class VideoBlock(QWidget):
 
     @only_initialized
     def show_overlay(self):
+        if Settings().get("misc/overlay_disabled"):
+            return
         self.overlay.show()
         if Settings().get("misc/overlay_hide"):
             self.overlay_hide_timer.start(1000 * Settings().get("misc/overlay_timeout"))

@@ -30,6 +30,7 @@ class VideoAspect(AutoName):
     FIT = auto()
     STRETCH = auto()
     NONE = auto()
+    FILL = auto()
 
 
 class VideoCrop(NamedTuple):

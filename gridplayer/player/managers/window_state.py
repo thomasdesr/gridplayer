@@ -86,6 +86,8 @@ class WindowStateManager(ManagerBase):
         self.parent().setMinimumSize(size)
 
     def restore_to_minimum(self):
+        if Settings().get("misc/keep_window_size"):
+            return
         if not self.parent().isMaximized() and not self.parent().isFullScreen():
             self.parent().resize(self.parent().minimumSize())
 

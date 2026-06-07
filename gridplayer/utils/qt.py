@@ -11,6 +11,7 @@ QT_ASPECT_MAP = MappingProxyType(
         VideoAspect.FIT: Qt.KeepAspectRatioByExpanding,
         VideoAspect.STRETCH: Qt.IgnoreAspectRatio,
         VideoAspect.NONE: Qt.KeepAspectRatio,
+        VideoAspect.FILL: Qt.KeepAspectRatioByExpanding,
     }
 )
 QT_LOG_IGNORED = ("requestActivate() called for",)

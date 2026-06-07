@@ -284,6 +284,7 @@ class SettingsDialog(QDialog, Ui_SettingsDialog):
             VideoAspect.FIT: self.tr("Fit"),
             VideoAspect.STRETCH: self.tr("Stretch"),
             VideoAspect.NONE: self.tr("None"),
+            VideoAspect.FILL: self.tr("Fill"),
         }
 
         _fill_combo_box(self.videoAspect, aspect_ratios)
