@@ -14,7 +14,7 @@ from gridplayer.params.static import (
     VideoTransform,
 )
 from gridplayer.settings import Settings
-from gridplayer.utils.aspect_calc import calc_crop, calc_fill_crop, calc_resize_scale
+from gridplayer.utils.aspect_calc import calc_crop, calc_resize_scale
 from gridplayer.utils.misc import is_url
 from gridplayer.vlc_player.libvlc import vlc
 from gridplayer.vlc_player.player_event_manager import EventManager
@@ -73,6 +73,12 @@ class VlcPlayerBase(ABC):
 
         self.is_video_initialized = False
 
+        # Last pane size the widget sent to adjust_view; used to re-apply the
+        # view from cb_vout. media_input.size goes stale (it only tracks the
+        # pre-load size), which made the vout re-apply crop to a transient
+        # layout size and letterbox.
+        self._last_size = None
+
         self._is_paused = False
 
         self._timeout_init_start = None
@@ -129,6 +135,7 @@ class VlcPlayerBase(ABC):
             "time_changed": self.cb_time_changed,
             "media_parsed_changed": self.cb_parse_changed,
             "buffering": self.cb_buffering,
+            "vout": self.cb_vout,
         }
 
         for event_name, callback in callbacks.items():
@@ -138,6 +145,22 @@ class VlcPlayerBase(ABC):
         buffered_percent = int(event.u.new_cache)
         self.notify_update_status(
             translate("Video Status", "Buffering"), buffered_percent
+        )
+
+    def cb_vout(self, event):
+        # On macOS the initial adjust_view runs before the video output
+        # exists, so its crop/aspect calls are dropped and the video renders
+        # uncropped until the next resize. Re-apply the view once the vout is
+        # up so FILL (and any crop) is correct on first render. Setting the
+        # crop doesn't change the vout count, so this won't re-fire itself.
+        if self.media is None or self.media.is_audio_only or self._last_size is None:
+            return
+        self._log.debug(f"Video output ready, re-applying view at {self._last_size}")
+        self.adjust_view(
+            size=self._last_size,
+            aspect=self.media_input.video.aspect_mode,
+            scale=self.media_input.video.scale,
+            crop=self.media_input.video.crop,
         )
 
     def cb_playing(self, event):
@@ -523,6 +546,8 @@ class VlcPlayerBase(ABC):
 
     @only_initialized_player
     def adjust_view(self, size, aspect, scale, crop):
+        self._last_size = size
+
         if self.media is None:
             # video not loaded yet, video frame resized on init
             if self.media_input:
@@ -597,10 +622,13 @@ class VlcPlayerBase(ABC):
         # wait for video output init
         # otherwise adjust_view won't work
         # if video is paused it happens on seek
-        # doesn't work on MacOS for some reason
+        # doesn't work on MacOS for some reason — cb_vout re-applies there
         if not env.IS_MACOS and not self.media_input.video.is_paused:
             self._event_waiter.wait_for("vout", self.init_time_left)
 
+        self._apply_media_input_view()
+
+    def _apply_media_input_view(self):
         self.adjust_view(
             size=self.media_input.size,
             aspect=self.media_input.video.aspect_mode,
