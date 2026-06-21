@@ -56,6 +56,7 @@ def _make_player(aspect_mode=VideoAspect.FILL, is_audio_only=False):
     media_input.video.scale = 1.0
     media_input.video.crop = VideoCrop(0, 0, 0, 0)
     media_input.video.transform = None
+    media_input.video.fill_anchor = (0.5, 0.5)
     player.media_input = media_input
 
     return player, media_player

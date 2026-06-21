@@ -55,6 +55,7 @@ def make_player(
     scale: float = 1,
     crop: VideoCrop = VideoCrop(0, 0, 0, 0),
     transform: VideoTransform = VideoTransform.NONE,
+    fill_anchor: tuple[float, float] = (0.5, 0.5),
     is_audio_only: bool = False,
     media: object | None = "__default__",
 ) -> _StubPlayer:
@@ -67,6 +68,7 @@ def make_player(
         scale=scale,
         crop=crop,
         transform=transform,
+        fill_anchor=fill_anchor,
     )
     player.media_input = SimpleNamespace(size=pane_size, video=video)
 

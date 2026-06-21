@@ -1,10 +1,11 @@
 import logging
+import random
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from pydantic import UUID4, BaseModel, Field, ValidationError
+from pydantic import UUID4, BaseModel, Field, ValidationError, field_validator
 from pydantic_extra_types.color import Color
 
 from gridplayer.models.video_uri import AbsoluteFilePath, VideoURI, parse_uri
@@ -15,12 +16,23 @@ from gridplayer.params.static import (
     VideoRepeat,
     VideoTransform,
 )
-from gridplayer.settings import default_field
+from gridplayer.settings import Settings, default_field
 
 MIN_SCALE = 1.0
 MAX_SCALE = 10.0
 MIN_RATE = 0.2
 MAX_RATE = 12
+
+FILL_ANCHOR_CENTER = (0.5, 0.5)
+
+
+def _default_fill_anchor() -> tuple[float, float]:
+    # A fresh random anchor per Video instance gives each pane a different
+    # framing of the same source under FILL. Disable via the setting to pin
+    # every pane to the centered cover-crop.
+    if Settings().get("video_defaults/fill_random_anchor"):
+        return (random.random(), random.random())
+    return FILL_ANCHOR_CENTER
 
 
 class Video(BaseModel):
@@ -46,6 +58,8 @@ class Video(BaseModel):
     is_paused: bool = default_field("video_defaults/paused")
     scale: Annotated[float, Field(ge=MIN_SCALE, le=MAX_SCALE)] = 1.0
     crop: VideoCrop = VideoCrop(0, 0, 0, 0)
+    # FILL framing: fraction in [0, 1] per axis (0.5 = centered cover-crop).
+    fill_anchor: tuple[float, float] = Field(default_factory=_default_fill_anchor)
     volume: float = 1.0
     transform: VideoTransform = default_field("video_defaults/transform")
 
@@ -58,6 +72,12 @@ class Video(BaseModel):
     video_track_id: int | None = None
 
     audio_channel_mode: AudioChannelMode = default_field("video_defaults/audio_mode")
+
+    @field_validator("fill_anchor")
+    @classmethod
+    def _clamp_fill_anchor(cls, value: tuple[float, float]) -> tuple[float, float]:
+        x, y = value
+        return (min(max(x, 0.0), 1.0), min(max(y, 0.0), 1.0))
 
     @property
     def uri_name(self) -> str:

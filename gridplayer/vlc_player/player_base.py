@@ -551,10 +551,19 @@ class VlcPlayerBase(ABC):
             # video not loaded yet, video frame resized on init
             return
 
-        # FILL's "w:h" crop ratio (VoutDisplayCropRatio) is recomputed by VLC on
-        # every vout reconfiguration, so it survives window resizes — unlike a
-        # hand-computed absolute pixel crop, which collapsed to a sliver.
-        commands = compute_view(self.video_dimensions, size, aspect, scale, crop)
+        # FILL's centered "w:h" crop ratio (VoutDisplayCropRatio) is recomputed
+        # by VLC on every vout reconfiguration, so it survives window resizes —
+        # unlike a hand-computed absolute pixel crop, which collapsed to a sliver.
+        # An off-center fill_anchor takes the absolute path; compute_view re-fits
+        # it from the anchor fraction each call, so it too survives resize.
+        fill_anchor = (
+            self.media_input.video.fill_anchor
+            if self.media_input is not None
+            else (0.5, 0.5)
+        )
+        commands = compute_view(
+            self.video_dimensions, size, aspect, scale, crop, fill_anchor
+        )
 
         self._log.debug(
             f"size: {size}"
