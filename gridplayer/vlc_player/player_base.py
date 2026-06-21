@@ -145,15 +145,18 @@ class VlcPlayerBase(ABC):
         # are dropped — the video renders uncropped until the next resize.
         # Re-apply once the output is up. Other platforms wait for vout
         # synchronously and already apply the crop at init, so we skip this
-        # there (and avoid re-entering libvlc from its own event callback).
-        # Setting the crop doesn't change the vout count, so this won't
+        # there. Setting the crop doesn't change the vout count, so this won't
         # re-fire itself.
+        #
+        # The re-apply is DEFERRED off the libvlc event thread via
+        # _schedule_view_reapply: cb_vout runs inside a libvlc event callback,
+        # so re-entering libvlc setters synchronously here risks a deadlock.
         if not env.IS_MACOS:
             return
         if self.media is None or self.media.is_audio_only or self.media_input is None:
             return
         self._log.debug(f"Video output ready, re-applying view at {self.media_input.size}")
-        self._apply_media_input_view()
+        self._schedule_view_reapply()
 
     def cb_playing(self, event):
         self._log.debug("Media playing")
@@ -599,6 +602,12 @@ class VlcPlayerBase(ABC):
         if not env.IS_MACOS and not self.media_input.video.is_paused:
             self._event_waiter.wait_for("vout", self.init_time_left)
 
+        self._apply_media_input_view()
+
+    def _schedule_view_reapply(self):
+        # Default: apply directly. Threaded subclasses override this to marshal
+        # the call off the libvlc event thread onto their event loop, since
+        # cb_vout runs inside a libvlc event callback and must not re-enter libvlc.
         self._apply_media_input_view()
 
     def _apply_media_input_view(self):
