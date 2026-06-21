@@ -9,12 +9,10 @@ from gridplayer.params import env
 from gridplayer.params.static import (
     VIDEO_END_LOOP_MARGIN_MS,
     AudioChannelMode,
-    VideoAspect,
-    VideoCrop,
     VideoTransform,
 )
 from gridplayer.settings import Settings
-from gridplayer.utils.aspect_calc import calc_crop, calc_resize_scale
+from gridplayer.utils.aspect_calc import compute_view
 from gridplayer.utils.misc import is_url
 from gridplayer.vlc_player.libvlc import vlc
 from gridplayer.vlc_player.player_event_manager import EventManager
@@ -550,45 +548,24 @@ class VlcPlayerBase(ABC):
             # video not loaded yet, video frame resized on init
             return
 
-        # FILL mode: centered cover-crop the source to the pane aspect via
-        # VLC's native crop RATIO ("w:h"), at native aspect, fit-in-window.
-        # The ratio crop (VoutDisplayCropRatio) is recomputed by VLC on every
-        # vout reconfiguration, so it survives window resizes — unlike a
+        # FILL's "w:h" crop ratio (VoutDisplayCropRatio) is recomputed by VLC on
+        # every vout reconfiguration, so it survives window resizes — unlike a
         # hand-computed absolute pixel crop, which collapsed to a sliver.
-        if aspect == VideoAspect.FILL:
-            crop_geometry_fmt = "{}:{}".format(*size)
-            self._log.debug(
-                f"FILL: size={size}, vid_dim={self.video_dimensions}"
-                f", crop_geo={crop_geometry_fmt}"
-            )
-            self._media_player.video_set_aspect_ratio(None)
-            self._media_player.video_set_crop_geometry(crop_geometry_fmt)
-            self._media_player.video_set_scale(0)
-            return
-
-        crop_aspect, crop_geometry = calc_crop(self.video_dimensions, size, aspect)
-
-        if crop == VideoCrop(0, 0, 0, 0):
-            crop_geometry_fmt = "{}:{}".format(*crop_geometry)
-        else:
-            crop_geometry_fmt = "+{}+{}+{}+{}".format(*crop)
+        commands = compute_view(self.video_dimensions, size, aspect, scale, crop)
 
         self._log.debug(
             f"size: {size}"
             f", aspect: {aspect}"
             f", scale: {scale}"
             f", crop: {crop}"
-            f", crop_aspect: {crop_aspect}"
-            f", crop_geo: {crop_geometry}"
-            f", crop_geo_fmt: {crop_geometry_fmt}"
+            f", vid_dim: {self.video_dimensions}"
+            f", commands: {commands}"
         )
 
-        resize_scale = calc_resize_scale(self.video_dimensions, size, aspect, scale)
-
-        self._media_player.video_set_aspect_ratio("{}:{}".format(*crop_aspect))
+        self._media_player.video_set_aspect_ratio(commands.aspect_ratio)
         # https://github.com/videolan/vlc/blob/e9eceaed4d838dbd84638bfb2e4bdd08294163b1/src/video_output/display.c#L887
-        self._media_player.video_set_crop_geometry(crop_geometry_fmt)
-        self._media_player.video_set_scale(resize_scale)
+        self._media_player.video_set_crop_geometry(commands.crop_geometry)
+        self._media_player.video_set_scale(commands.scale)
 
     def _try_set_initial_state(self):
         try:
