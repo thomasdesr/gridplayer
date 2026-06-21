@@ -25,14 +25,27 @@ def compute_view(
     aspect: VideoAspect,
     scale: float,
     crop: VideoCrop,
+    fill_anchor: tuple[float, float] = (0.5, 0.5),
 ) -> ViewCommands:
     if aspect == VideoAspect.FILL:
-        # FILL cover-crops the source to the pane aspect via VLC's native crop
-        # RATIO ("w:h"), at native aspect, fit-in-window. Uses the pane size,
-        # not the source dimensions or the absolute crop box.
+        vid_x, vid_y = video_dimensions
+        # Centered cover-crop uses VLC's native crop RATIO ("w:h"): VLC centers
+        # it and recomputes it on every vout reconfiguration, so it survives
+        # resize for free. Also the fallback before the source size is known.
+        if fill_anchor == (0.5, 0.5) or vid_x == 0 or vid_y == 0:
+            return ViewCommands(
+                aspect_ratio=None,
+                crop_geometry="{}:{}".format(*size),
+                scale=0,
+            )
+        # Off-center: an absolute "+L+T+R+B" crop. The pixel edges are derived
+        # from the anchor FRACTION here, so re-running compute_view on every
+        # resize re-fits the crop to the new pane aspect (the fraction is what
+        # persists, not the pixels — a one-shot absolute crop collapsed on resize).
+        crop_edges = fill_cover_crop(video_dimensions, size, fill_anchor)
         return ViewCommands(
             aspect_ratio=None,
-            crop_geometry="{}:{}".format(*size),
+            crop_geometry="+{}+{}+{}+{}".format(*crop_edges),
             scale=0,
         )
 
@@ -50,6 +63,37 @@ def compute_view(
         crop_geometry=crop_geometry_fmt,
         scale=resize_scale,
     )
+
+
+def fill_cover_crop(
+    video_dimensions: tuple[int, int],
+    size: tuple[int, int],
+    anchor: tuple[float, float],
+) -> VideoCrop:
+    """Cover-crop the source to the pane aspect, positioned by anchor.
+
+    Returns the largest sub-rectangle of the source that has the pane's aspect
+    ratio, as per-edge pixel crops (Left, Top, Right, Bottom). anchor is a
+    fraction in [0, 1] per axis (0.5 = centered, 0 = top/left, 1 = bottom/right).
+    Exactly one axis is trimmed — the surplus one.
+    """
+    vid_x, vid_y = video_dimensions
+    scr_x, scr_y = size
+    anchor_x, anchor_y = anchor
+
+    # Compare source vs pane aspect by cross-multiplication (integer-safe).
+    if vid_x * scr_y > scr_x * vid_y:
+        # Source wider than the pane: trim left/right, keep full height.
+        kept_x = max(1, min(round(vid_y * scr_x / scr_y), vid_x))
+        surplus = vid_x - kept_x
+        left = min(max(round(anchor_x * surplus), 0), surplus)
+        return VideoCrop(left, 0, surplus - left, 0)
+
+    # Source taller than (or equal to) the pane: trim top/bottom.
+    kept_y = max(1, min(round(vid_x * scr_y / scr_x), vid_y))
+    surplus = vid_y - kept_y
+    top = min(max(round(anchor_y * surplus), 0), surplus)
+    return VideoCrop(0, top, 0, surplus - top)
 
 
 def calc_resize_scale(
