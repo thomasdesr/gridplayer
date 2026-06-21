@@ -15,7 +15,7 @@ print("Playlist Generator")
 print("\n=== Start ===\n")
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-files = glob(str(SCRIPT_DIR / "../videos/mp4/*"))
+files = glob(str(SCRIPT_DIR / "../videos/*"))
 
 
 def path_files(files: list[str]):
