@@ -40,6 +40,7 @@ _default_settings = {
     "player/inhibit_screensaver": True,
     "player/one_instance": True,
     "player/stay_on_top": False,
+    "player/start_fullscreen": True,
     "player/show_overlay_border": False,
     "player/language": get_system_language(),
     "player/recent_list_enabled": True,
@@ -51,7 +52,7 @@ _default_settings = {
     "playlist/save_state": False,
     "playlist/save_window": False,
     "playlist/seek_sync_mode": SeekSyncMode.DISABLED,
-    "playlist/track_changes": True,
+    "playlist/track_changes": False,
     "playlist/shuffle_on_load": False,
     "playlist/disable_click_pause": False,
     "playlist/disable_wheel_seek": False,
@@ -66,9 +67,9 @@ _default_settings = {
     "video_defaults/auto_reload_timer": 0,
     "misc/overlay_hide": True,
     "misc/overlay_timeout": 3,
-    "misc/overlay_disabled": False,
-    "misc/loading_status_disabled": False,
-    "misc/keep_window_size": False,
+    "misc/overlay_disabled": True,
+    "misc/loading_status_disabled": True,
+    "misc/keep_window_size": True,
     "misc/mouse_hide": True,
     "misc/mouse_hide_timeout": 5,
     "misc/vlc_options": "",
@@ -93,7 +94,9 @@ if env.IS_MACOS:
 class _Settings:
     def __init__(self):
         override = os.environ.get("GRIDPLAYER_SETTINGS_PATH")
-        settings_path = Path(override) if override else get_app_data_dir() / "settings.ini"
+        settings_path = (
+            Path(override) if override else get_app_data_dir() / "settings.ini"
+        )
 
         self.settings = QSettings(str(settings_path), QSettings.IniFormat)
 
