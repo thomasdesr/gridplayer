@@ -70,4 +70,4 @@ for _ in $(seq 1 50); do
 done
 
 echo ">> Ready. Type a button number and press Enter to show videos (Ctrl-C to quit)."
-"$UV" run python "$CONTROLLER"
+"$UV" run "$CONTROLLER"
